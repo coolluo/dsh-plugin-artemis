@@ -1,0 +1,16 @@
+# dsh-artemis bundle layer: inserts the ARTEMIS bridge plugin row.
+# Loaded by `dsh plugin --profile <name> add dsh-plugin-artemis`.
+# `name` is the package entry; the Loader resolves it from profile node_modules.
+#
+# Only `artemisPath` normally needs editing: point it at your ARTEMIS checkout
+# (the directory holding mcp_server/ and pyproject.toml). Everything else has a
+# working default.
+- insert:
+    - id: dsh-artemis
+      name: 'dsh-plugin-artemis'
+      config:
+        artemisPath: ''
+        defaultModel: Flash
+        defaultWaitSeconds: 120
+        maxWaitSeconds: 600
+        provideSkill: true

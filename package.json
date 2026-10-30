@@ -1,0 +1,55 @@
+{
+  "name": "dsh-plugin-artemis",
+  "version": "0.1.0",
+  "description": "Give DeepSeek Harness a real mobile-automation agent: hand a natural-language task to Google ARTEMIS (Google's Android agent, 99%+ on AndroidWorld) over MCP and get the result back — screenshots, plans, verified steps, execution traces. | 把 Google ARTEMIS 接进 DSH：用一句话把任务交给安卓自动化 agent，拿回截图、计划、校验结果和执行轨迹。",
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "artemis",
+    "mcp",
+    "android",
+    "mobile-automation",
+    "androidworld"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./lib/index.js",
+  "exports": {
+    ".": {
+      "import": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/",
+    "skills/",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.2.1-alpha.5"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node tests/unit.test.js && node tests/integration.test.js",
+    "test:unit": "node tests/unit.test.js",
+    "test:integration": "node tests/integration.test.js"
+  }
+}
