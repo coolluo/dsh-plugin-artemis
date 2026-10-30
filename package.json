@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-artemis",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Give DeepSeek Harness a real mobile-automation agent: hand a natural-language task to Google ARTEMIS (Google's Android agent, 99%+ on AndroidWorld) over MCP and get the result back — screenshots, plans, verified steps, execution traces. | 把 Google ARTEMIS 接进 DSH：用一句话把任务交给安卓自动化 agent，拿回截图、计划、校验结果和执行轨迹。",
   "keywords": [
     "dsh-plugin",

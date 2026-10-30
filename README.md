@@ -26,7 +26,7 @@ DSH: 电量 53%，共 6 步，用时 41s（trace 可回放）
 | ARTEMIS 源码 | `git clone https://github.com/google/artemis.git`，见下方配置 |
 | Python 3.12+ 与 [uv](https://docs.astral.sh/uv/) | ARTEMIS 用 uv 管理环境（也支持已装好依赖的 `python -m mcp_server`） |
 | adb + 一台安卓设备 | 真机开 USB 调试，或已启动的模拟器（`adb devices -l` 能看到 `device` 状态） |
-| 一个模型 key | ARTEMIS 自己调用模型：把 `GEMINI_API_KEY`（或其他 provider）写进 ARTEMIS 的 `.env` |
+| 一个模型 key | ARTEMIS 自己调用模型：`GEMINI_API_KEY` 或 **DeepSeek 的 `OPENAI_API_KEY`**（见[下一节](#不用-gemini-key改用-deepseek-flash)），写进 ARTEMIS 的 `.env` |
 | Node 20+ | DSH 本身的要求 |
 
 ## 安装
@@ -87,6 +87,61 @@ ARTEMIS 的 MCP 是**异步**的：`mobile_run_task` 立刻返回 `trace_id`，�
 | `callTimeoutMs` / `startupTimeoutMs` | `120000` / `180000` | 单次调用 / 首次握手预算（首次 `uv run` 可能建环境） |
 | `provideSkill` | `true` | 是否注册自带 skill |
 
+## 不用 Gemini key：改用 DeepSeek Flash
+
+ARTEMIS 需要一个能看屏幕的多模态模型，但**不一定要 Gemini**。DeepSeek 的 `deepseek-flash` 走标准 OpenAI 兼容接口、原生支持图片，配好这两处就能跑。
+
+### 1. ARTEMIS 的 `.env`
+
+```ini
+OPENAI_API_KEY=sk-你的DeepSeek key
+OPENAI_BASE_URL=https://api.deepseek.com
+```
+
+`GEMINI_API_KEY` 可以完全留空。
+
+### 2. ARTEMIS 的 `config/artemis.jsonc`
+
+改六处（缺一处就会继续去找 Gemini）：
+
+| 位置 | 改成 | 原因 |
+|---|---|---|
+| `default` | `"provider": "openai"`, `"model": "deepseek-flash"` | 全局路由 |
+| `nodes.object_detector` | `openai / deepseek-flash` | 默认钉死 Gemini ER 模型，没有 Gemini key 时必须换 |
+| `nodes.hopper` | `openai / deepseek-flash` | 否则仍会初始化 Gemini 客户端 |
+| `flash.explorer_mode`、`pro.explorer.mode`、`explorer.default_version` | `"pro"` | `flash` 档直接走 ER 检测器；`pro` 档用多轮 ReAct（UI 树 + 截图）定位 |
+| `memory.chunking.model` | `deepseek-flash` | 历史压缩也在调模型 |
+| `video_analyzer`（顶层与 `pro` 下各一处） | `"enabled": false` | 录屏分析走 Gemini Files API |
+
+`default` 与 `object_detector` 改完长这样：
+
+```jsonc
+"default": { "provider": "openai", "model": "deepseek-flash", "fallback": { "provider": "openai", "model": "deepseek-flash" } },
+"nodes": {
+  "object_detector": { "provider": "openai", "model": "deepseek-flash" }
+}
+```
+
+### 3. 两个必踩的坑
+
+1. **`agent.flash.step_summarizer` 只接受模型名，内部固定建 Gemini 客户端**。改成 `deepseek-flash` 后会报 `ChatGoogleGenerativeAI ... API key required`（报错里还带着 DeepSeek 的模型名，很容易误判），必须把它设成 `"enabled": false`。
+2. **ARTEMIS 的常驻 daemon 用启动时的环境拉起任务**。后加的 key 不会生效，任务会报缺 key 而 `status.json` 里 `error` 是 null（提示只在 `stdout.log`）。给插件配 `env: { ARTEMIS_STANDALONE: '1' }` 绕开 daemon 最省事：
+
+```yaml
+- id: dsh-artemis
+  name: 'dsh-plugin-artemis'
+  config:
+    artemisPath: 'D:\Projects\artemis'
+    env:
+      ARTEMIS_STANDALONE: '1'
+```
+
+### 效果预期
+
+真机上「打开设置 → 电池 → 读电量」这类任务：5 步、约 28 秒完成。坐标定位精度弱于 Gemini ER 是正常的——ARTEMIS 官方 99% 的成绩来自 Gemini 生态，换模型后长链路任务可能需要更多步，个别密集列表会点偏，用 `artemis_trace` 的 `view_step_screenshots` 可以回看它点了哪里。
+
+> 仓库里的 `docs/USING-DEEPSEEK.md` 是完整版说明（含每一项的上下文与排错）。
+
 ## 排障
 
 1. 任何报错先跑 `artemis_doctor`。它把本地检查（artemisPath、uv、python、adb、`.env` 里的 provider）和 ARTEMIS 自己的诊断合并，`next_steps` 里 `[REQUIRED]` 是阻塞项，`Run:` 可直接执行。
@@ -121,7 +176,7 @@ ARTEMIS 的 MCP 是**异步**的：`mobile_run_task` 立刻返回 `trace_id`，�
 | 安装（干净 profile，仅装本包） | `dsh --profile <name> --dump-config` 正确组合出插件行与默认配置 |
 | MCP 握手 / 工具发现 | 自动选中 `.venv` 里的 python，5 个工具全部发现 |
 | `artemis_device_state` | hierarchy 1522 字符融合树；screenshot 经 attachment 进入模型上下文 |
-| `artemis_run_task`（真机） | 华为 BRA-AL00（Android 12）上跑通「设置 → 电池 → 读电量」：**5 步 / 28.1s / completed**，由 DeepSeek 驱动（非 Gemini 配置见下节） |
+| `artemis_run_task`（真机） | 华为 BRA-AL00（Android 12）上跑通「设置 → 电池 → 读电量」：**5 步 / 28.1s / completed**，模型为 DeepSeek Flash |
 | `artemis_run_task`（模拟器） | 真实派发、轮询到终态并回传 trace 与日志路径 |
 | `artemis_trace` | 真实 trace 返回 ARTEMIS 的 Markdown 执行摘要 |
 | 失败路径 | ARTEMIS 缺模型 key 时，错误原文与 `stdout_log` 一并返回，不吞异常 |
