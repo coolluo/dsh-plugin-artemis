@@ -129,14 +129,14 @@ if ($publishCode -ne 0) {
 		Write-Host "        //registry.npmjs.org/:_authToken=YOUR_TOKEN"
 		Write-Host "        (keep this file private; it grants publish rights)"
 		Write-Host "  Then re-run publish.cmd."
+	} elseif ($publishText -match "cannot publish over|previously published|EPUBLISHCONFLICT") {
+		Write-Host "Cause: this version already exists on npm. Bump 'version' in package.json and re-run." -ForegroundColor Yellow
 	} elseif ($publishText -match "E403|403") {
 		Write-Host "Cause: permission denied. The package name may already be taken, or this account does not own it." -ForegroundColor Yellow
 		Write-Host "  Check: npm view dsh-plugin-artemis   (404 = free; anything else = taken)"
 		Write-Host "  If taken, rename it in package.json (e.g. add a scope) and re-run."
 	} elseif ($publishText -match "ENEEDAUTH|need auth") {
 		Write-Host "Cause: still not authenticated. Run: npm login" -ForegroundColor Yellow
-	} elseif ($publishText -match "EPUBLISHCONFLICT|cannot publish over") {
-		Write-Host "Cause: this version already exists. Bump 'version' in package.json and re-run." -ForegroundColor Yellow
 	} elseif ($publishText -match "EAI_AGAIN|ETIMEDOUT|ECONNRESET|network") {
 		Write-Host "Cause: network problem reaching registry.npmjs.org. Check proxy/VPN and re-run." -ForegroundColor Yellow
 	} else {
